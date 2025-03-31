@@ -35,6 +35,7 @@ This project predicts the outcomes of ATP (Association of Tennis Professionals) 
     Follow the instructions in data/README.md to download and set up the data.
 
 ### Usage
+
 1. **Launch Jupyter Notebook:**
   jupyter notebook ATP_prediction.ipynb
 2. **Run the Notebook:**
@@ -48,10 +49,10 @@ Execute all cells sequentially to:
 Modify year ranges in the notebook (e.g., load_match(2000, 2020)) to adjust training/validation/test periods.
 Tweak hyperparameters in the BayesSearchCV section for experimentation.
 
-Results
-Training Period: 2000-2020
-Validation Period: 2020-2022
-Test Period: 2022-2024
-Model: Gradient Boosting Classifier
-Test Accuracy: ~80% (varies slightly with optimization iterations)
-Cross-Validation Score: Average of ~0.81 across 5 time-series folds
+## Results
+
+- Training Period: 2000-2022
+- Test Period: 2022-2024
+- Model: Gradient Boosting Classifier
+- Test Accuracy: ~65% (varies slightly with optimization iterations)
+- Cross-Validation Score: Average of ~0.65 across 5 time-series folds
