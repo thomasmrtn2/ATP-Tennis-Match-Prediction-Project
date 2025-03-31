@@ -34,7 +34,7 @@ This project predicts the outcomes of ATP (Association of Tennis Professionals) 
     This project relies on external data from the tennis_atp repository.
     Follow the instructions in data/README.md to download and set up the data.
 
-###Usage
+### Usage
 1. **Launch Jupyter Notebook:**
   jupyter notebook ATP_prediction.ipynb
 2. **Run the Notebook:**
