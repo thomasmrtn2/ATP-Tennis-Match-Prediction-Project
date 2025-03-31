@@ -23,7 +23,7 @@ Ce dépôt contient des informations détaillées sur :
 *   Les classements ATP historiques.
 *   Des informations sur les joueurs (date de naissance, taille, main dominante, etc.).
 
-Pour ce projet, nous nous concentrons sur les matchs de simple ATP de **[Indiquez la période exacte utilisée, ex: 2000 à 2024]**.
+Pour ce projet, nous nous concentrons sur les matchs de simple de l'ATP entre **2000 et 2024**.
 
 ## 🛠️ Méthodologie
 
@@ -69,4 +69,32 @@ Le projet suit un pipeline structuré (implémenté en grande partie dans `atp_p
 *   **Matplotlib / Seaborn:** Visualisation (utilisé pendant l'exploration, non visible dans le script final).
 *   **Re:** Expressions régulières (pour parser le score).
 
-## 📂 Structure du Projet
+## 📈Résultats
+
+* Modèle Optimal : GradientBoostingClassifier (intégré dans un pipeline Scikit-learn complet incluant prétraitement, imputation KNN et sélection de caractéristiques).
+* Meilleur Score CV (Accuracy) : **0.67**
+(Score moyen obtenu par validation croisée temporelle lors de l'optimisation Bayesienne)
+* Accuracy sur le Test Set (2022-2024) : **0.65**
+(Performance finale évaluée sur des matchs non vus pendant l'entraînement ou l'optimisation)
+
+Ces résultats montrent l'incertitude présente au tennis. Montrant que le jeu conserve une part fondamentale d'imprévisibilité, où la forme du jour, la dynamique du match et la force mentale peuvent déjouer les pronostics, et c'est précisément ce qui fait toute la beauté et le suspense de ce sport
+## 💡Améliorations Possibles
+
+* Intégrer des systèmes de notation plus dynamiques (type ELO rating) pour mieux capturer la forme relative des joueurs.
+* Ajouter des caractéristiques liées à la fatigue (temps passé sur le court récemment, enchaînement des matchs, décalage horaire/voyages).
+* Explorer des techniques de Deep Learning (ex: réseaux récurrents ou transformers si les séquences de matchs sont considérées) si la complexité et le volume de données le justifient.
+* Affiner l'analyse des erreurs : identifier les types de matchs (surface, niveau de tournoi, H2H spécifique) où le modèle échoue le plus pour guider l'amélioration des caractéristiques.
+* Tester des fenêtres temporelles différentes pour le calcul des statistiques roulantes.
+
+## Auteur
+
+Thomas Martin - https://github.com/thomasmrtn2 
+
+
+## Remerciements
+
+Un grand merci à Jeff Sackmann pour la collecte exhaustive et la mise à disposition publique des données de tennis via son dépôt tennis_atp (https://github.com/JeffSackmann/tennis_atp).
+
+
+
+
