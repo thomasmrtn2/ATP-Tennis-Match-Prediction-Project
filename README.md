@@ -39,7 +39,7 @@ This project predicts the outcomes of ATP (Association of Tennis Professionals) 
 1. **Launch Jupyter Notebook:**
   jupyter notebook ATP_prediction.ipynb
 2. **Run the Notebook:**
-Execute all cells sequentially to:
+- Execute all cells sequentially to:
   - Load and preprocess the data.
   - Engineer features.
   - Train and optimize the model.
