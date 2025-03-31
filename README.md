@@ -45,7 +45,7 @@ Execute all cells sequentially to:
   - Train and optimize the model.
   - Evaluate performance on the test set.
 
-3. Customize:
+3. **Customize:**
 Modify year ranges in the notebook (e.g., load_match(2000, 2020)) to adjust training/validation/test periods.
 Tweak hyperparameters in the BayesSearchCV section for experimentation.
 
