@@ -1,6 +1,5 @@
 # Prédiction de Résultats de Matchs ATP avec Machine Learning
 
-![Tennis Banner](...) # Optionnel: Ajoutez une image/bannière représentative ici
 
 ## 📖 Description
 
