@@ -1,58 +1,73 @@
-# ATP Tennis Match Prediction
+# Prédiction de Résultats de Matchs ATP avec Machine Learning
 
-## Overview
-This project predicts the outcomes of ATP (Association of Tennis Professionals) tennis matches using historical data from 2000 to 2024. Built as a portfolio piece, it demonstrates expertise in data preprocessing, feature engineering, and machine learning, leveraging a Gradient Boosting Classifier optimized with Bayesian search. The notebook achieves an accuracy of approximately 80% on test data (2022-2024), showcasing a robust approach to sports analytics.
+![Tennis Banner](...) # Optionnel: Ajoutez une image/bannière représentative ici
 
-**[View the Notebook on GitHub](ATP_prediction.ipynb)**
+## 📖 Description
 
-## Features
-- **Data Source**: Utilizes Jeff Sackmann's [tennis_atp](https://github.com/JeffSackmann/tennis_atp) repository, providing match, ranking, and player data.
-- **Feature Engineering**:
-  - Win rates: Overall, surface-specific, and rolling, adjusted with a Bayesian approach.
-  - Serve statistics: First serve percentage, win percentages, aces, and double faults per match.
-  - Break point performance: Save and conversion rates under pressure.
-  - Head-to-head (H2H) records between players.
-  - Player form: Recent game counts and ranking point changes.
-- **Modeling**: Gradient Boosting Classifier with feature selection and hyperparameter tuning.
-- **Evaluation**: Time-series cross-validation to respect the temporal nature of tennis data.
+Ce projet vise à prédire l'issue des matchs de tennis masculin du circuit ATP en utilisant des techniques de Machine Learning. Il met en œuvre un pipeline complet, allant du chargement des données historiques à l'évaluation d'un modèle optimisé, en passant par une ingénierie de caractéristiques approfondie et une gestion rigoureuse des aspects temporels pour éviter les fuites de données.
 
-## Installation
+L'objectif principal est de démontrer une approche méthodique pour aborder un problème de prédiction temporelle complexe, en mettant l'accent sur :
+*   L'extraction et la création de caractéristiques pertinentes (statistiques de jeu, forme récente, H2H, classement).
+*   La gestion correcte des données temporelles pour l'entraînement et l'évaluation (utilisation de données passées uniquement).
+*   L'optimisation des hyperparamètres via la recherche bayésienne (`BayesSearchCV`).
+*   L'évaluation robuste du modèle avec `TimeSeriesSplit`.
 
-### Prerequisites
-- Python 3.8 or higher
-- Git
-- Jupyter Notebook
+## 🎯 Problème
 
-### Steps
-1. **Clone this Repository**:
-   ```bash
-   git clone https://github.com/[YourUsername]/ATP_prediction.git
-   cd ATP_prediction
-2. **Install Dependencies**:
-   pip install -r requirements.txt
-3. **Obtain Tennis Data**
-    This project relies on external data from the tennis_atp repository.
-    Follow the instructions in data/README.md to download and set up the data.
+Prédire l'issue d'un match de tennis est un défi en raison de la multitude de facteurs influençant la performance (état de forme, surface, historique des confrontations, conditions de jeu, etc.). Ce projet tente de modéliser ces influences à partir de données historiques pour construire un prédicteur fiable.
 
-### Usage
+## 📊 Données
 
-1. **Launch Jupyter Notebook:**
-  jupyter notebook ATP_prediction.ipynb
-2. **Run the Notebook:**
-- Execute all cells sequentially to:
-  - Load and preprocess the data.
-  - Engineer features.
-  - Train and optimize the model.
-  - Evaluate performance on the test set.
+Les données utilisées proviennent du dépôt GitHub très complet de **Jeff Sackmann** : [tennis_atp](https://github.com/JeffSackmann/tennis_atp).
+Ce dépôt contient des informations détaillées sur :
+*   Les résultats des matchs (simple et double) depuis 1968.
+*   Les classements ATP historiques.
+*   Des informations sur les joueurs (date de naissance, taille, main dominante, etc.).
 
-3. **Customize:**
-Modify year ranges in the notebook (e.g., load_match(2000, 2020)) to adjust training/validation/test periods.
-Tweak hyperparameters in the BayesSearchCV section for experimentation.
+Pour ce projet, nous nous concentrons sur les matchs de simple ATP de **[Indiquez la période exacte utilisée, ex: 2000 à 2024]**.
 
-## Results
+## 🛠️ Méthodologie
 
-- Training Period: 2000-2022
-- Test Period: 2022-2024
-- Model: Gradient Boosting Classifier
-- Test Accuracy: ~65% (varies slightly with optimization iterations)
-- Cross-Validation Score: Average of ~0.65 across 5 time-series folds
+Le projet suit un pipeline structuré (implémenté en grande partie dans `atp_prediction.py`) :
+
+1.  **Chargement des Données :** Chargement des fichiers CSV de matchs, classements et joueurs pour la période sélectionnée.
+2.  **Prétraitement Initial :**
+    *   Conversion des dates au format datetime.
+    *   Nettoyage initial des données joueurs (imputation simple pour taille, date de naissance, etc.).
+    *   Tri des données par date pour respecter la chronologie.
+3.  **Gestion de la Cible :** La fonction `flip_dataset` permute aléatoirement (50% de chance) les colonnes `winner_*` et `loser_*` et crée une cible binaire `winner` (0 si joueur 1 gagne, 1 si joueur 2 gagne). Ceci évite que le modèle apprenne simplement que "le joueur 1 gagne toujours" et crée un problème de classification binaire équilibré.
+4.  **Ingénierie de Caractéristiques (Feature Engineering) :** Création de nombreuses caractéristiques pour capturer différentes facettes du jeu, **en s'assurant de n'utiliser que des informations antérieures au match actuel pour éviter la fuite de données** :
+    *   **Forme Récente :** Nombre de jeux joués récemment (`get_Number_of_games_recent`).
+    *   **Taux de Victoire :** Taux de victoire globaux, par surface, et sur les N derniers matchs, ajustés avec une approche bayésienne pour plus de robustesse (`create_win_rate`, `win_rate_adjusted`).
+    *   **Confrontations Directes (H2H) :** Bilan des rencontres précédentes entre les deux joueurs (`get_h2h`).
+    *   **Statistiques de Service :** Pourcentages de 1ère balle, points gagnés sur 1ère/2ème balle, aces/doubles fautes par match (calculés sur l'historique, `get_serve_statistics`).
+    *   **Statistiques de Points de Break :** Pourcentage de balles de break sauvées/converties, nombre de balles de break jouées/subies par match (calculés sur l'historique, `get_break_points_statistics`).
+    *   **Classement :** Evolution des points ATP sur une période donnée (`get_players_rank_stats`).
+5.  **Imputation des Données Manquantes :**
+    *   Imputation par la médiane pour les statistiques de service/break calculées (`ServeStatisticsImputer`).
+    *   Imputation plus sophistiquée par **KNNImputer** (après standardisation) pour les rangs et certaines statistiques clés, intégrée **correctement** dans un `ColumnTransformer` pour éviter la fuite de données lors de la validation croisée et sur les données de test.
+6.  **Prétraitement Final (via `ColumnTransformer`) :**
+    *   Suppression des colonnes brutes inutiles.
+    *   Encodage One-Hot des variables catégorielles (surface, tournoi, etc.).
+    *   Standardisation (`StandardScaler`) des caractéristiques numériques restantes.
+7.  **Modélisation :**
+    *   Comparaison initiale de plusieurs modèles (RandomForest, AdaBoost, GradientBoosting).
+    *   Sélection de `GradientBoostingClassifier` comme modèle principal.
+8.  **Optimisation des Hyperparamètres :**
+    *   Utilisation de `BayesSearchCV` (bibliothèque `scikit-optimize`) pour trouver les meilleurs hyperparamètres du pipeline complet (incluant la sélection de caractéristiques `SelectKBest` et les paramètres du `GradientBoostingClassifier`).
+    *   Validation croisée avec `TimeSeriesSplit` pour respecter la dépendance temporelle des données.
+9.  **Évaluation :**
+    *   Score de validation croisée (Accuracy) obtenu lors de la recherche bayésienne.
+    *   Évaluation finale sur un jeu de test indépendant (données futures par rapport à l'entraînement) pour mesurer la performance de généralisation.
+
+## 🚀 Technologies Utilisées
+
+*   **Python 3.x**
+*   **Pandas:** Manipulation et analyse de données.
+*   **NumPy:** Calcul numérique.
+*   **Scikit-learn:** Pipelines, prétraitement, modèles ML, métriques, validation croisée (`TimeSeriesSplit`), `ColumnTransformer`, `KNNImputer`, `StandardScaler`, `SelectKBest`.
+*   **Scikit-optimize (`skopt`):** Optimisation bayésienne (`BayesSearchCV`).
+*   **Matplotlib / Seaborn:** Visualisation (utilisé pendant l'exploration, non visible dans le script final).
+*   **Re:** Expressions régulières (pour parser le score).
+
+## 📂 Structure du Projet
