@@ -26,7 +26,7 @@ The repository includes detailed information on:
 * Historical ATP rankings.
 * Player data (e.g., date of birth, height, dominant hand, etc.).
 
-For this project, we focus on ATP singles matches between **2000 and 2024**.
+For this project, we focus on ATP singles matches between **2010 and 2024**.
 
 ---
 
@@ -77,7 +77,6 @@ The project follows a structured pipeline (mostly implemented in `Tennis_Predict
     * **Under Pressure Rating (`under_pressure_rating`):**
         * *Components:* Aggregates rolling averages of break points saved %, break points converted % (using opponent's faced/saved stats), tiebreaks won %, and deciding sets won %.
         * *Originality:* Quantifies player performance in high-stakes situations. Combines clutch serving (BP saved), clutch returning (BP converted), tiebreak nerve, and endurance/focus in decisive sets. Also utilizes **surface-specific weights** (e.g., tiebreak performance weighted higher on faster surfaces like Grass).
-        * 
 ---
 
 ## 🚀 Technologies Used
