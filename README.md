@@ -34,88 +34,90 @@ For this project, we focus on ATP singles matches between **2000 and 2024**.
 
 The project follows a structured pipeline (mostly implemented in `Tennis_Prediction.ipynb`):
 
-1. **Data Loading:**
-   - Load match data from CSV files for the selected period.
+1.  **Data Loading & Initial Processing:**
+    * Match data from 2010 to 2024 is loaded.
+    * Dates are processed to estimate actual match dates based on tournament start date and round.
+    * Matches are sorted chronologically.
 
-2. **Initial Preprocessing:**
-   - Convert date columns to datetime format.
-   - Sort the data by date to maintain chronological order.
+2.  **Target Balancing (`flip_dataset`):**
+    * To avoid bias from the arbitrary assignment of "winner" and "loser" columns, 50% of the matches are randomly selected to have their Player 1 and Player 2 data swapped. A target variable `winner` (0 or 1) is created accordingly.
 
-3. **Target Handling:**
-   - The `flip_dataset` function randomly swaps (50% chance) the `winner_*` and `loser_*` columns and creates a binary target `winner` (0 if Player 1 wins, 1 if Player 2 wins).  
-   - This ensures the model doesn’t simply learn that "Player 1 always wins" and creates a balanced binary classification problem.
+3.  **Feature Engineering Pipeline:** A series of functions generate features, carefully avoiding data leakage by using historical data only:
+    * **Serve Stats Imputation (`ServeStatsImputerV2`):** Imputes missing serve statistics (aces, double faults, points won, etc.) using historical player averages, falling back to surface averages and then a default value.
+    * **Minutes Imputation (`minutes_Imputer`):** Imputes missing match duration (`minutes`) using the median duration based on the number of games and sets played in the match.
+    * **Recent Playtime (`get_minutes_played_recent`):** Calculates the total minutes played by each player over a recent time window (e.g., 14 days) to estimate fatigue.
+    * **Elo Ratings (`elo_feature`):** Calculates dynamic Elo ratings for each player, both globally and specific to the match surface. Elo differences are key predictors.
+    * **Head-to-Head (`get_h2h_v2`):** Computes historical and recent (last N matches) head-to-head win/loss records between the two players.
+    * **Serve/Return/Pressure Ratings (`serve_stats_rating`, `return_stats_rating`, `under_pressure_rating`):** Creates composite scores based on weighted rolling averages (e.g., last 365 days) of various statistics:
+        * *Serve:* First serve %, serve points won %, aces, double faults, service games won %.
+        * *Return:* Return points won %, break points converted %.
+        * *Pressure:* Break points saved/converted %, tiebreaks won %, deciding sets won %.
+    * **Recent Form (`get_recent_form`):** Calculates the number of matches won by each player in their last N (e.g., 10) matches.
+    * **Match Importance (`get_match_importance`):** Assigns a score based on the tournament level (Grand Slam, Masters, etc.) and round (Final, SF, QF, etc.).
 
-4. **Feature Engineering:**
-   - Numerous features are created to capture different aspects of the game, **ensuring only past information is used for each match to avoid data leakage**:
-     - **Minutes Played Recently:** Number of minutes played by each player in the last window matches. (`get_minutes_played_recent`).
-     - **Elo rankings:** A global and surface specific elo ranking for each players. The initial elo is 1500 (Can be modified) (`elo_feature`).
-     - **Head-to-Head (H2H):** win/loss record between players during their last 10 matches. (`get_h2h`).
-     - **Serve Rating:** A rating of each players service for global and surface specific matches. To compute this statistic I used this formula :
-       $$
+4.  **Modeling & Evaluation:**
+    * **Models Tested:**
+        * Random Forest Classifier
+        * AdaBoost Classifier
+        * Gradient Boosting Classifier
+        * A Dense Neural Network (MLP) using TensorFlow/Keras
+    * **Cross-Validation:** `TimeSeriesSplit` is used for cross-validation on the training set to respect data chronology.
+    * **Evaluation Metrics:** Accuracy is the primary metric. Confusion matrices are analyzed to understand error patterns.
+---
 
-    \text{Serve Rating} = \text{weight}_1 \times (\text{First Serve Ratio}) + \text{weight}_2 \times (\text{1st Serve Points Won}) + \ldots
-    
-   $$
-The coefficient are different depending on the surface. (`get_serve_statistics`).
-     - **Break Point Statistics:** Percentages of break points saved/converted, number of break points per match (`get_break_points_statistics`).
-     - **Rankings:** Evolution of ATP points over time (`get_players_rank_stats`).
+## 🛠️ Feature Engineering Highlights
 
-5. **Missing Data Imputation:**
-   - Median imputation for serve/break statistics (`ServeStatisticsImputer`).
-   - Advanced **KNN imputation** (after standardization) for rankings and other key statistics, integrated **properly** within a `ColumnTransformer` to prevent data leakage during cross-validation and on the test set.
-
-6. **Final Preprocessing (via `ColumnTransformer`):**
-   - Drop redundant raw columns.
-   - One-hot encode categorical variables (surface, tournament, etc.).
-   - Standardize remaining numerical features (`StandardScaler`).
-
-7. **Modeling:**
-   - Initial comparison of several models (RandomForest, AdaBoost, GradientBoosting).
-   - Selection of `GradientBoostingClassifier` as the main model.
-
-8. **Hyperparameter Optimization:**
-   - Use **Bayesian optimization** (`BayesSearchCV` from `scikit-optimize`) to find the best hyperparameters for the entire pipeline (including feature selection with `SelectKBest` and `GradientBoostingClassifier` parameters).
-   - Validate with **`TimeSeriesSplit`** to respect the temporal dependency of the data.
-
-9. **Evaluation:**
-   - Cross-validation accuracy obtained during Bayesian optimization.
-   - Final evaluation on an independent test set (future data), measuring generalization performance.
-
+* **Composite Performance Ratings:** A key element of this project is the creation of unique, composite ratings that combine multiple raw statistics into single, weighted scores reflecting specific aspects of a player's game. These ratings are calculated using rolling time windows (365 days) to capture recent form and are generated both globally and for specific surfaces:
+    * **Serve Rating (`serve_stats_rating`):**
+        * *Components:* Aggregates rolling averages of 1st serve %, 1st serve points won %, 2nd serve points won %, aces per match (normalized), double faults per match (normalized, negative impact), and service games won %.
+        * *Originality:* Combines serve effectiveness (win %) and consistency (% in) with serve weapons (aces) and weaknesses (DFs). Uses **surface-specific weights** (e.g., aces and 1st serve win % weighted higher on Grass) and normalization for count-based stats to create a holistic, context-aware serve performance score.
+    * **Return Rating (`return_stats_rating`):**
+        * *Components:* Aggregates rolling averages of opponent's 1st serve points won % (inverted to get returner's win %), opponent's 2nd serve points won % (inverted), opponent's service games won % (inverted), and break points converted %. All components are normalized.
+        * *Originality:* Focuses on the player's ability to neutralize opponent serves and capitalize on break opportunities. Uses **surface-specific weights** (e.g., break point conversion weighted higher on Clay) and normalization to create a comprehensive return game assessment.
+    * **Under Pressure Rating (`under_pressure_rating`):**
+        * *Components:* Aggregates rolling averages of break points saved %, break points converted % (using opponent's faced/saved stats), tiebreaks won %, and deciding sets won %.
+        * *Originality:* Quantifies player performance in high-stakes situations. Combines clutch serving (BP saved), clutch returning (BP converted), tiebreak nerve, and endurance/focus in decisive sets. Also utilizes **surface-specific weights** (e.g., tiebreak performance weighted higher on faster surfaces like Grass).
+        * 
 ---
 
 ## 🚀 Technologies Used
 
-* **Python 3.x**
-* **Pandas**: Data manipulation and analysis.
-* **NumPy**: Numerical computation.
-* **Scikit-learn**:
-  - Pipelines, preprocessing, machine learning models, metrics, cross-validation (`TimeSeriesSplit`), `ColumnTransformer`, `KNNImputer`, `StandardScaler`, and `SelectKBest`.
-* **Scikit-optimize (`skopt`)**: Bayesian optimization (`BayesSearchCV`).
-* **Matplotlib / Seaborn**: Visualizations (used during exploration and analysis).
-* **Re (Regular Expressions)**: For score parsing.
+* Python 3.x
+* pandas
+* numpy
+* scikit-learn
+* tensorflow (for the Neural Network part)
+* matplotlib
+* seaborn
+
 
 ---
 
 ## 📈 Results
 
-* **Optimal Model**: `GradientBoostingClassifier` (integrated into a complete Scikit-learn pipeline with preprocessing, KNN imputation, and feature selection).
-* **Best Cross-Validation Accuracy**: **67%**  
-  (Average accuracy from time-series cross-validation during Bayesian optimization).
-* **Test Set Accuracy (2022-2024)**: **65%**  
-  (Final accuracy evaluated on unseen matches).
+* The tree-based models (Random Forest, AdaBoost, Gradient Boosting) achieved cross-validation accuracies generally in the range of **~67-69%** on the training folds using `TimeSeriesSplit`.
+* The Multi-Layer Perceptron (MLP) achieved an accuracy of approximately **64.7%** on its dedicated test set after scaling.
+* **Feature Importance:** Analysis (e.g., using Random Forest feature importances) revealed that **Elo-based features** (especially Elo difference and surface-specific Elo difference) are the most significant predictors in the model.
+* **Error Analysis:** Predictions are less accurate when the Elo difference between players is small (i.e., matches are predicted to be close). The model performs better when there is a clearer skill gap indicated by Elo ratings.
 
-These results highlight the uncertainty inherent in tennis. The sport retains a fundamental layer of unpredictability, where day-to-day form, match dynamics, and mental toughness can overturn predictions. This is exactly what makes tennis so thrilling and suspenseful.
+These results highlight the **uncertainty inherent in tennis**. The sport retains a fundamental layer of unpredictability, where day-to-day form, match dynamics, and mental toughness can overturn predictions. 
+This is exactly what **makes tennis so thrilling and suspenseful.**
 
 ---
 
 ## 💡 Future Work
 
-* Integrate more dynamic rating systems (e.g., ELO ratings) to better capture relative player form.
-* Add fatigue-related features (recent time on court, match frequency, travel effects).
-* Explore deep learning techniques (e.g., RNNs or transformers for match sequences) if the complexity and data volume justify it.
-* Conduct error analysis:
-  - Identify match types (surface, tournament level, specific H2H pairs) where the model struggles the most.
-* Experiment with different rolling time windows for performance metrics.
+Potential avenues for future development and improvement include:
+
+* **Advanced Hyperparameter Tuning:** Employ more rigorous optimization techniques like Bayesian Optimization (as hinted in the original script comments) specifically tailored for `TimeSeriesSplit` to fine-tune the best performing models (e.g., Gradient Boosting).
+* **Expanded Dataset:**
+    * Integrate data from other tours (WTA, Challengers) for broader analysis or transfer learning experiments.
+    * Include betting odds data as a market-based feature reflecting perceived win probabilities.
+* **Advanced Modeling:**
+    * Experiment with sequence models (LSTMs, GRUs) to better capture temporal dependencies in player form.
+    * Explore Graph Neural Networks (GNNs) to model player relationships and head-to-head networks.
+* **Model Interpretability:** Utilize techniques like SHAP or LIME to gain deeper insights into individual predictions and feature contributions, especially for the custom ratings.
+* **Deployment:** Develop a pipeline for making real-time predictions during ongoing tournaments.
 
 ---
 
