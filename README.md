@@ -1,108 +1,125 @@
-# Prédiction de Résultats de Matchs ATP avec Machine Learning
+# 🎾 ATP Tennis Match Outcome Prediction with Machine Learning
 
 
 ## 📖 Description
 
-Ce projet vise à prédire l'issue des matchs de tennis masculin du circuit ATP en utilisant des techniques de Machine Learning. Il met en œuvre un pipeline complet, allant du chargement des données historiques à l'évaluation d'un modèle optimisé, en passant par une ingénierie de caractéristiques approfondie et une gestion rigoureuse des aspects temporels pour éviter les fuites de données.
+This project aims to predict the outcomes of ATP men's tennis matches using **machine learning** techniques. It implements a complete pipeline, from loading historical data to evaluating an optimized model, with thorough feature engineering and rigorous temporal handling to avoid data leakage.
 
-L'objectif principal est de démontrer une approche méthodique pour aborder un problème de prédiction temporelle complexe, en mettant l'accent sur :
-*   L'extraction et la création de caractéristiques pertinentes (statistiques de jeu, forme récente, H2H, classement).
-*   La gestion correcte des données temporelles pour l'entraînement et l'évaluation (utilisation de données passées uniquement).
-*   L'optimisation des hyperparamètres via la recherche bayésienne (`BayesSearchCV`).
-*   L'évaluation robuste du modèle avec `TimeSeriesSplit`.
+The main goal is to demonstrate a methodical approach to solving a complex temporal prediction problem, focusing on:
+* Extracting and creating relevant features (players serves, return and under pressure ratings, recent form, H2H, rankings).
+* Properly handling temporal data for training and evaluation (using only past data).
+* Robust model evaluation using `TimeSeriesSplit`.
 
-## 🎯 Problème
+---
 
-Prédire l'issue d'un match de tennis est un défi en raison de la multitude de facteurs influençant la performance (état de forme, surface, historique des confrontations, conditions de jeu, etc.). Ce projet tente de modéliser ces influences à partir de données historiques pour construire un prédicteur fiable.
+## 🎯 Problem Statement
 
-## 📊 Données
+Predicting the outcome of a tennis match is challenging due to the multitude of factors influencing performance (current form, surface, head-to-head history, playing conditions, etc.). This project attempts to model these influences using historical data to build a reliable predictor.
 
-Les données utilisées proviennent du dépôt GitHub très complet de **Jeff Sackmann** : [tennis_atp](https://github.com/JeffSackmann/tennis_atp).
-Ce dépôt contient des informations détaillées sur :
-*   Les résultats des matchs (simple et double) depuis 1968.
-*   Les classements ATP historiques.
-*   Des informations sur les joueurs (date de naissance, taille, main dominante, etc.).
+---
 
-Pour ce projet, nous nous concentrons sur les matchs de simple de l'ATP entre **2000 et 2024**.
+## 📊 Data
 
-## 🛠️ Méthodologie
+The dataset comes from **Jeff Sackmann's comprehensive GitHub repository**: [tennis_atp](https://github.com/JeffSackmann/tennis_atp).  
+The repository includes detailed information on:
+* Match results (singles and doubles) since 1968.
+* Historical ATP rankings.
+* Player data (e.g., date of birth, height, dominant hand, etc.).
 
-Le projet suit un pipeline structuré (implémenté en grande partie dans `atp_prediction.py`) :
+For this project, we focus on ATP singles matches between **2000 and 2024**.
 
-1.  **Chargement des Données :** Chargement des fichiers CSV de matchs, classements et joueurs pour la période sélectionnée.
+---
 
-2.  **Prétraitement Initial :**
-    *   Conversion des dates au format datetime.
-    *   Nettoyage initial des données joueurs (imputation simple pour taille, date de naissance, etc.).
-    *   Tri des données par date pour respecter la chronologie.
+## 🛠️ Methodology
 
-3.  **Gestion de la Cible :** La fonction `flip_dataset` permute aléatoirement (50% de chance) les colonnes `winner_*` et `loser_*` et crée une cible binaire `winner` (0 si joueur 1 gagne, 1 si joueur 2 gagne). Ceci évite que le modèle apprenne simplement que "le joueur 1 gagne toujours" et crée un problème de classification binaire équilibré.
+The project follows a structured pipeline (mostly implemented in `Tennis_Prediction.ipynb`):
 
-4.  **Ingénierie de Caractéristiques (Feature Engineering) :** Création de nombreuses caractéristiques pour capturer différentes facettes du jeu, **en s'assurant de n'utiliser que des informations antérieures au match actuel pour éviter la fuite de données** :
-    *   **Forme Récente :** Nombre de jeux joués récemment (`get_Number_of_games_recent`).
-    *   **Taux de Victoire :** Taux de victoire globaux, par surface, et sur les N derniers matchs, ajustés avec une approche bayésienne pour plus de robustesse (`create_win_rate`, `win_rate_adjusted`).
-    *   **Confrontations Directes (H2H) :** Bilan des rencontres précédentes entre les deux joueurs (`get_h2h`).
-    *   **Statistiques de Service :** Pourcentages de 1ère balle, points gagnés sur 1ère/2ème balle, aces/doubles fautes par match (calculés sur l'historique, `get_serve_statistics`).
-    *   **Statistiques de Points de Break :** Pourcentage de balles de break sauvées/converties, nombre de balles de break jouées/subies par match (calculés sur l'historique, `get_break_points_statistics`).
-    *   **Classement :** Evolution des points ATP sur une période donnée (`get_players_rank_stats`).
+1. **Data Loading:**
+   - Load match data from CSV files for the selected period.
 
-5.  **Imputation des Données Manquantes :**
-    *   Imputation par la médiane pour les statistiques de service/break calculées (`ServeStatisticsImputer`).
-    *   Imputation plus sophistiquée par **KNNImputer** (après standardisation) pour les rangs et certaines statistiques clés, intégrée **correctement** dans un `ColumnTransformer` pour éviter la fuite de données lors de la validation croisée et sur les données de test.
+2. **Initial Preprocessing:**
+   - Convert date columns to datetime format.
+   - Sort the data by date to maintain chronological order.
 
-6.  **Prétraitement Final (via `ColumnTransformer`) :**
-    *   Suppression des colonnes brutes inutiles.
-    *   Encodage One-Hot des variables catégorielles (surface, tournoi, etc.).
-    *   Standardisation (`StandardScaler`) des caractéristiques numériques restantes.
+3. **Target Handling:**
+   - The `flip_dataset` function randomly swaps (50% chance) the `winner_*` and `loser_*` columns and creates a binary target `winner` (0 if Player 1 wins, 1 if Player 2 wins).  
+   - This ensures the model doesn’t simply learn that "Player 1 always wins" and creates a balanced binary classification problem.
 
-7.  **Modélisation :**
-    *   Comparaison initiale de plusieurs modèles (RandomForest, AdaBoost, GradientBoosting).
-    *   Sélection de `GradientBoostingClassifier` comme modèle principal.
+4. **Feature Engineering:**
+   - Numerous features are created to capture different aspects of the game, **ensuring only past information is used for each match to avoid data leakage**:
+     - **Minutes Played Recently:** Number of minutes played by each player in the last window matches. (`get_minutes_played_recent`).
+     - **Elo rankings:** A global and surface specific elo ranking for each players. The initial elo is 1500 (Can be modified) (`elo_feature`).
+     - **Head-to-Head (H2H):** win/loss record between players during their last 10 matches. (`get_h2h`).
+     - **Serve Rating:** A rating of each players service for global and surface specific matches. To compute this statistic I used this formula :
+       coef * Ratio First Serve + coef2 * Ratio Point won on First Serve + coef3 * Ration Point won on Second Serve + coef4 * Average Ace per match + coef5 * ratio Service games won - coef5 *             Average double fault per match. The coefficient are different depending on the surface. (`get_serve_statistics`).
+     - **Break Point Statistics:** Percentages of break points saved/converted, number of break points per match (`get_break_points_statistics`).
+     - **Rankings:** Evolution of ATP points over time (`get_players_rank_stats`).
 
-8.  **Optimisation des Hyperparamètres :**
-    *   Utilisation de `BayesSearchCV` (bibliothèque `scikit-optimize`) pour trouver les meilleurs hyperparamètres du pipeline complet (incluant la sélection de caractéristiques `SelectKBest` et les paramètres du `GradientBoostingClassifier`).
-    *   Validation croisée avec `TimeSeriesSplit` pour respecter la dépendance temporelle des données.
+5. **Missing Data Imputation:**
+   - Median imputation for serve/break statistics (`ServeStatisticsImputer`).
+   - Advanced **KNN imputation** (after standardization) for rankings and other key statistics, integrated **properly** within a `ColumnTransformer` to prevent data leakage during cross-validation and on the test set.
 
-9.  **Évaluation :**
-    *   Score de validation croisée (Accuracy) obtenu lors de la recherche bayésienne.
-    *   Évaluation finale sur un jeu de test indépendant (données futures par rapport à l'entraînement) pour mesurer la performance de généralisation.
+6. **Final Preprocessing (via `ColumnTransformer`):**
+   - Drop redundant raw columns.
+   - One-hot encode categorical variables (surface, tournament, etc.).
+   - Standardize remaining numerical features (`StandardScaler`).
 
-## 🚀 Technologies Utilisées
+7. **Modeling:**
+   - Initial comparison of several models (RandomForest, AdaBoost, GradientBoosting).
+   - Selection of `GradientBoostingClassifier` as the main model.
 
-*   **Python 3.x**
-*   **Pandas:** Manipulation et analyse de données.
-*   **NumPy:** Calcul numérique.
-*   **Scikit-learn:** Pipelines, prétraitement, modèles ML, métriques, validation croisée (`TimeSeriesSplit`), `ColumnTransformer`, `KNNImputer`, `StandardScaler`, `SelectKBest`.
-*   **Scikit-optimize (`skopt`):** Optimisation bayésienne (`BayesSearchCV`).
-*   **Matplotlib / Seaborn:** Visualisation (utilisé pendant l'exploration, non visible dans le script final).
-*   **Re:** Expressions régulières (pour parser le score).
+8. **Hyperparameter Optimization:**
+   - Use **Bayesian optimization** (`BayesSearchCV` from `scikit-optimize`) to find the best hyperparameters for the entire pipeline (including feature selection with `SelectKBest` and `GradientBoostingClassifier` parameters).
+   - Validate with **`TimeSeriesSplit`** to respect the temporal dependency of the data.
 
-## 📈Résultats
+9. **Evaluation:**
+   - Cross-validation accuracy obtained during Bayesian optimization.
+   - Final evaluation on an independent test set (future data), measuring generalization performance.
 
-* Modèle Optimal : GradientBoostingClassifier (intégré dans un pipeline Scikit-learn complet incluant prétraitement, imputation KNN et sélection de caractéristiques).
-* Meilleur Score CV (Accuracy) : **0.67**
-(Score moyen obtenu par validation croisée temporelle lors de l'optimisation Bayesienne)
-* Accuracy sur le Test Set (2022-2024) : **0.65**
-(Performance finale évaluée sur des matchs non vus pendant l'entraînement ou l'optimisation)
+---
 
-Ces résultats montrent l'incertitude présente au tennis. Montrant que le jeu conserve une part fondamentale d'imprévisibilité, où la forme du jour, la dynamique du match et la force mentale peuvent déjouer les pronostics, et c'est précisément ce qui fait toute la beauté et le suspense de ce sport
-## 💡Améliorations Possibles
+## 🚀 Technologies Used
 
-* Intégrer des systèmes de notation plus dynamiques (type ELO rating) pour mieux capturer la forme relative des joueurs.
-* Ajouter des caractéristiques liées à la fatigue (temps passé sur le court récemment, enchaînement des matchs, décalage horaire/voyages).
-* Explorer des techniques de Deep Learning (ex: réseaux récurrents ou transformers si les séquences de matchs sont considérées) si la complexité et le volume de données le justifient.
-* Affiner l'analyse des erreurs : identifier les types de matchs (surface, niveau de tournoi, H2H spécifique) où le modèle échoue le plus pour guider l'amélioration des caractéristiques.
-* Tester des fenêtres temporelles différentes pour le calcul des statistiques roulantes.
+* **Python 3.x**
+* **Pandas**: Data manipulation and analysis.
+* **NumPy**: Numerical computation.
+* **Scikit-learn**:
+  - Pipelines, preprocessing, machine learning models, metrics, cross-validation (`TimeSeriesSplit`), `ColumnTransformer`, `KNNImputer`, `StandardScaler`, and `SelectKBest`.
+* **Scikit-optimize (`skopt`)**: Bayesian optimization (`BayesSearchCV`).
+* **Matplotlib / Seaborn**: Visualizations (used during exploration and analysis).
+* **Re (Regular Expressions)**: For score parsing.
 
-## Auteur
+---
 
-Thomas Martin - https://github.com/thomasmrtn2 
+## 📈 Results
 
+* **Optimal Model**: `GradientBoostingClassifier` (integrated into a complete Scikit-learn pipeline with preprocessing, KNN imputation, and feature selection).
+* **Best Cross-Validation Accuracy**: **67%**  
+  (Average accuracy from time-series cross-validation during Bayesian optimization).
+* **Test Set Accuracy (2022-2024)**: **65%**  
+  (Final accuracy evaluated on unseen matches).
 
-## Remerciements
+These results highlight the uncertainty inherent in tennis. The sport retains a fundamental layer of unpredictability, where day-to-day form, match dynamics, and mental toughness can overturn predictions. This is exactly what makes tennis so thrilling and suspenseful.
 
-Un grand merci à Jeff Sackmann pour la collecte exhaustive et la mise à disposition publique des données de tennis via son dépôt tennis_atp (https://github.com/JeffSackmann/tennis_atp).
+---
 
+## 💡 Future Work
 
+* Integrate more dynamic rating systems (e.g., ELO ratings) to better capture relative player form.
+* Add fatigue-related features (recent time on court, match frequency, travel effects).
+* Explore deep learning techniques (e.g., RNNs or transformers for match sequences) if the complexity and data volume justify it.
+* Conduct error analysis:
+  - Identify match types (surface, tournament level, specific H2H pairs) where the model struggles the most.
+* Experiment with different rolling time windows for performance metrics.
 
+---
 
+## 👨‍💻 Author
+
+**Thomas Martin** - [GitHub Profile](https://github.com/thomasmrtn2)
+
+---
+
+## 🙏 Acknowledgments
+
+Special thanks to Jeff Sackmann for his exhaustive dataset and its public availability via the [tennis_atp repository](https://github.com/JeffSackmann/tennis_atp).
