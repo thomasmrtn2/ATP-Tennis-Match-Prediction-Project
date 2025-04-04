@@ -51,7 +51,12 @@ The project follows a structured pipeline (mostly implemented in `Tennis_Predict
      - **Elo rankings:** A global and surface specific elo ranking for each players. The initial elo is 1500 (Can be modified) (`elo_feature`).
      - **Head-to-Head (H2H):** win/loss record between players during their last 10 matches. (`get_h2h`).
      - **Serve Rating:** A rating of each players service for global and surface specific matches. To compute this statistic I used this formula :
-       coef * Ratio First Serve + coef2 * Ratio Point won on First Serve + coef3 * Ration Point won on Second Serve + coef4 * Average Ace per match + coef5 * ratio Service games won - coef5 *             Average double fault per match. The coefficient are different depending on the surface. (`get_serve_statistics`).
+       $$
+
+    \text{Serve Rating} = \text{weight}_1 \times (\text{First Serve Ratio}) + \text{weight}_2 \times (\text{1st Serve Points Won}) + \ldots
+    
+   $$
+The coefficient are different depending on the surface. (`get_serve_statistics`).
      - **Break Point Statistics:** Percentages of break points saved/converted, number of break points per match (`get_break_points_statistics`).
      - **Rankings:** Evolution of ATP points over time (`get_players_rank_stats`).
 
